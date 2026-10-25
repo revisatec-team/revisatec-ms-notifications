@@ -1,0 +1,16 @@
+{
+  "name": "revisatec-ms-notifications",
+  "version": "0.1.0",
+  "description": "MS3 - Notificaciones asíncronas y tiempo real de RevisaTEC",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  }
+}
