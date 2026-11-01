@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Configuración centralizada y validada para MS3 Notifications.
  */
 function validateConfig(env = process.env) {
@@ -22,6 +22,12 @@ function validateConfig(env = process.env) {
     pollIntervalMs: parseInt(env.POLL_INTERVAL_MS, 10) || 3000,
     visibilityTimeoutS: parseInt(env.VISIBILITY_TIMEOUT_S, 10) || 30,
     maxDequeueCount: parseInt(env.MAX_DEQUEUE_COUNT, 10) || 5,
+    // Variables de tiempo real (Azure Web PubSub)
+    realtimeConnectionString: env.REALTIME_CONNECTION_STRING ? env.REALTIME_CONNECTION_STRING.trim() : '',
+    realtimeHub: env.REALTIME_HUB ? env.REALTIME_HUB.trim() : 'notifications',
+    realtimeTokenTtlMinutes: Math.max(1, parseInt(env.REALTIME_TOKEN_TTL_MINUTES, 10) || 60),
+    // Orígenes CORS permitidos (solo para desarrollo local)
+    corsAllowedOrigins: env.CORS_ALLOWED_ORIGINS ? env.CORS_ALLOWED_ORIGINS.trim() : '',
   };
 }
 

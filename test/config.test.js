@@ -25,6 +25,10 @@ describe('Configurador de MS3', () => {
     assert.equal(config.pollIntervalMs, 3000);
     assert.equal(config.visibilityTimeoutS, 30);
     assert.equal(config.maxDequeueCount, 5);
+    assert.equal(config.realtimeConnectionString, '');
+    assert.equal(config.realtimeHub, 'notifications');
+    assert.equal(config.realtimeTokenTtlMinutes, 60);
+    assert.equal(config.corsAllowedOrigins, '');
   });
 
   it('respeta variables personalizadas si se proporcionan', () => {
@@ -37,6 +41,10 @@ describe('Configurador de MS3', () => {
       POLL_INTERVAL_MS: '5000',
       VISIBILITY_TIMEOUT_S: '60',
       MAX_DEQUEUE_COUNT: '3',
+      REALTIME_CONNECTION_STRING: 'Endpoint=https://custom.webpubsub.azure.com;',
+      REALTIME_HUB: 'custom-hub',
+      REALTIME_TOKEN_TTL_MINUTES: '120',
+      CORS_ALLOWED_ORIGINS: 'http://localhost:5173,http://localhost:5174',
     });
 
     assert.equal(config.port, 4000);
@@ -46,5 +54,9 @@ describe('Configurador de MS3', () => {
     assert.equal(config.pollIntervalMs, 5000);
     assert.equal(config.visibilityTimeoutS, 60);
     assert.equal(config.maxDequeueCount, 3);
+    assert.equal(config.realtimeConnectionString, 'Endpoint=https://custom.webpubsub.azure.com;');
+    assert.equal(config.realtimeHub, 'custom-hub');
+    assert.equal(config.realtimeTokenTtlMinutes, 120);
+    assert.equal(config.corsAllowedOrigins, 'http://localhost:5173,http://localhost:5174');
   });
 });

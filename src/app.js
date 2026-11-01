@@ -1,9 +1,16 @@
 ﻿const express = require('express');
 const { checkQueueHealth } = require('./queue/queueClient');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const { createCorsMiddleware } = require('./middleware/cors');
 const notificationsRouter = require('./routes/notifications.routes');
 
 const app = express();
+
+// Middleware de CORS manual (activo solo si se configura CORS_ALLOWED_ORIGINS)
+app.use((req, res, next) => {
+  const allowed = req.app.locals.corsAllowedOrigins ?? process.env.CORS_ALLOWED_ORIGINS ?? '';
+  return createCorsMiddleware(allowed)(req, res, next);
+});
 
 app.use(express.json());
 
