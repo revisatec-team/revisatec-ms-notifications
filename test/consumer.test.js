@@ -127,6 +127,68 @@ describe('Servicio de Notificaciones y Repositorio', () => {
     const list = await repo.list();
     assert.equal(list.totalRecords, 1);
   });
+
+  it('emite notificación en tiempo real tras guardar con éxito', async () => {
+    const repo = new InMemoryNotificationRepository();
+    const emitted = [];
+    const mockPublisher = {
+      async publish(notification) {
+        emitted.push(notification);
+      },
+    };
+
+    const service = new NotificationsService({
+      repository: repo,
+      publisher: mockPublisher,
+    });
+
+    const raw = {
+      eventId: 'evt-rt-1',
+      type: 'FEEDBACK_PUBLISHED',
+      courseId: 1,
+      groupId: 1,
+      title: 'Hito 1',
+      message: 'Mensaje de tiempo real',
+      createdAt: Date.now(),
+    };
+
+    const res = await service.processEvent(raw);
+    assert.equal(res.status, 'SUCCESS');
+    assert.equal(emitted.length, 1);
+    assert.equal(emitted[0].id, 'evt-rt-1');
+  });
+
+  it('un fallo en el publicador de tiempo real no rompe la persistencia ni falla el proceso', async () => {
+    const repo = new InMemoryNotificationRepository();
+    const faultyPublisher = {
+      async publish() {
+        throw new Error('Fallo de conexión simulado con Web PubSub');
+      },
+    };
+
+    const service = new NotificationsService({
+      repository: repo,
+      publisher: faultyPublisher,
+    });
+
+    const raw = {
+      eventId: 'evt-rt-2',
+      type: 'ISSUE_DETECTED',
+      courseId: 1,
+      groupId: 2,
+      title: 'Alerta',
+      message: 'Inconveniente detectado',
+      createdAt: Date.now(),
+    };
+
+    const res = await service.processEvent(raw);
+    assert.equal(res.status, 'SUCCESS');
+
+    // Comprobar que a pesar del error del publicador, la notificación sí quedó guardada
+    const saved = await repo.findById('evt-rt-2');
+    assert.ok(saved);
+    assert.equal(saved.id, 'evt-rt-2');
+  });
 });
 
 describe('Consumidor de Cola (QueueConsumer)', () => {
@@ -207,7 +269,6 @@ describe('Consumidor de Cola (QueueConsumer)', () => {
   });
 
   it('no elimina el mensaje si ocurre un error temporal', async () => {
-    // Repositorio defectuoso que lanza excepción simulando fallo transitorio de BD
     const faultyRepo = {
       async create() {
         throw new Error('Base de datos no disponible');
@@ -236,9 +297,7 @@ describe('Consumidor de Cola (QueueConsumer)', () => {
 
     await consumer._processSingleMessage(mainQueue.messages[0]);
 
-    // NO debe haber sido eliminado de la cola principal para que reaparezca
     assert.equal(mainQueue.deleted.length, 0);
-    // Tampoco debe haberse enviado a poison porque es un error temporal
     assert.equal(poisonQueue.sent.length, 0);
   });
 });
