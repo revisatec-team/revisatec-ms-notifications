@@ -1,8 +1,13 @@
-﻿openapi: 3.0.3
+openapi: 3.0.3
 info:
   title: RevisaTEC MS3 - Notifications
   description: Microservicio de Notificaciones asíncronas y eventos para RevisaTEC
   version: 0.2.0
+servers:
+  - url: /
+    description: Base URL del servicio o de APIM
+security:
+  - apimSubscriptionKey: []
 paths:
   /health:
     get:
@@ -25,6 +30,7 @@ paths:
                   timestamp:
                     type: integer
                     format: int64
+                    description: Epoch timestamp en milisegundos
                     example: 1729000000000
 
   /health/dependencies:
@@ -56,7 +62,7 @@ paths:
   /notifications/realtime-token:
     get:
       summary: Obtener URL y token para conexión en tiempo real
-      description: Genera una URL con token temporal para conectar el cliente WebSocket directamente a Azure Web PubSub sin pasar por APIM.
+      description: Genera una URL con token temporal para conectar el cliente WebSocket directamente a Azure Web PubSub sin pasar por APIM. Esta petición sí pasa por APIM; solo la conexión WebSocket posterior va directa.
       responses:
         '200':
           description: URL de conexión WebSocket y fecha de expiración
@@ -75,11 +81,13 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Tiempo real no disponible
 
   /notifications:
     get:
       summary: Lista de notificaciones
-      description: Obtiene el historial de notificaciones paginado, ordenado cronológicamente descendente y con búsqueda opcional.
+      description: Obtiene el historial de notificaciones paginado, ordenado cronológicamente descendente y con búsqueda opcional. A diferencia de MS1, la lista viaja en el campo data (no en items) e incluye totalPages y unreadCount.
       parameters:
         - name: page
           in: query
@@ -100,7 +108,7 @@ paths:
             maximum: 100
         - name: search
           in: query
-          description: Filtro de texto para título o mensaje
+          description: Filtro de texto, sin distinguir mayúsculas, sobre título, mensaje o tipo
           required: false
           schema:
             type: string
@@ -148,6 +156,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Notificación no encontrada
 
   /notifications/read-all:
     patch:
@@ -166,6 +176,12 @@ paths:
                     example: 3
 
 components:
+  securitySchemes:
+    apimSubscriptionKey:
+      type: apiKey
+      in: header
+      name: Ocp-Apim-Subscription-Key
+      description: Clave de suscripción de Azure API Management. En local, sin APIM, no se exige.
   schemas:
     RealtimeTokenResponse:
       type: object
@@ -229,6 +245,13 @@ components:
 
     NotificationPage:
       type: object
+      required:
+        - page
+        - pageSize
+        - totalRecords
+        - totalPages
+        - unreadCount
+        - data
       properties:
         page:
           type: integer
@@ -238,12 +261,14 @@ components:
           example: 20
         totalRecords:
           type: integer
+          description: Total de notificaciones que cumplen el filtro
           example: 45
         totalPages:
           type: integer
           example: 3
         unreadCount:
           type: integer
+          description: Total de notificaciones sin leer (no depende del filtro de búsqueda)
           example: 5
         data:
           type: array
@@ -252,6 +277,8 @@ components:
 
     ErrorResponse:
       type: object
+      required:
+        - error
       properties:
         error:
           type: string

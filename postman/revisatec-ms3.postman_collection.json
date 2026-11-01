@@ -1,0 +1,412 @@
+{
+  "info": {
+    "name": "RevisaTEC MS3 - Notifications",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Colección de pruebas de MS3 (revisatec-ms-notifications). Una prueba por endpoint.\n\nAutenticación: en APIM cada llamada lleva el header Ocp-Apim-Subscription-Key con la clave de suscripción (variable apimKey del entorno; nunca se guarda en el repositorio). APIM presenta un certificado de cliente al App Service (mTLS); las llamadas directas al App Service sin certificado se rechazan. En local no hace falta clave.\n\nCómo usarla: 1) arrancar MS3 (npm run dev), 2) enviar un mensaje de prueba (npm run send:test), 3) ejecutar la colección en orden. La prueba 03 guarda un id de notificación en la variable notificationId, que usa la 07.\n\nConvenciones: fechas en Epoch (ms); errores con { error }; la lista viene en data (pendiente de acordar si pasa a items)."
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "Ocp-Apim-Subscription-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{apimKey}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "notificationId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "01 GET /health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('status ok y servicio correcto', () => {",
+              "  pm.expect(body.status).to.eql('ok');",
+              "  pm.expect(body.service).to.eql('revisatec-ms-notifications');",
+              "});",
+              "pm.test('timestamp es Epoch en milisegundos', () => {",
+              "  pm.expect(body.timestamp).to.be.a('number');",
+              "  pm.expect(body.timestamp).to.be.above(1700000000000);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 GET /health/dependencies",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health/dependencies",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health",
+            "dependencies"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200 (cola ok) o 503 (cola caída)', () => pm.expect([200, 503]).to.include(pm.response.code));",
+              "pm.test('Informa el estado de la cola', () => pm.expect(['ok', 'error']).to.include(pm.response.json().queue));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 GET /notifications (lista paginada)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notifications?page=1&pageSize=10",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "pageSize",
+              "value": "10"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('Trae los campos de paginación', () => {",
+              "  ['page', 'pageSize', 'totalRecords', 'totalPages', 'unreadCount'].forEach(k => pm.expect(body[k], k).to.be.a('number'));",
+              "  pm.expect(body.page).to.eql(1);",
+              "  pm.expect(body.pageSize).to.eql(10);",
+              "});",
+              "// NOTA: hoy la lista viene en 'data'. Si el equipo la cambia a 'items', actualizar aquí.",
+              "pm.test('data es un arreglo', () => pm.expect(body.data).to.be.an('array'));",
+              "pm.test('Cada notificación tiene los campos del contrato', () => {",
+              "  body.data.forEach(n => {",
+              "    ['id', 'type', 'title', 'message', 'source'].forEach(k => pm.expect(n[k], k).to.be.a('string'));",
+              "    pm.expect(n.createdAt).to.be.above(1700000000000);",
+              "    pm.expect(n.read).to.be.a('boolean');",
+              "  });",
+              "});",
+              "pm.test('Orden: más recientes primero', () => {",
+              "  for (let i = 1; i < body.data.length; i++) pm.expect(body.data[i - 1].createdAt).to.be.at.least(body.data[i].createdAt);",
+              "});",
+              "const target = body.data.find(n => !n.read) || body.data[0];",
+              "if (target) pm.collectionVariables.set('notificationId', target.id);",
+              "pm.test('Hay al menos una notificación (envía una con npm run send:test)', () => pm.expect(body.data.length).to.be.above(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 GET /notifications con page=0 (400)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notifications?page=0",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "0"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 400', () => pm.response.to.have.status(400));",
+              "pm.test('Error con formato { error }', () => pm.expect(pm.response.json().error).to.be.a('string').and.not.empty);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 GET /notifications con pageSize=150 (400)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notifications?pageSize=150",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "pageSize",
+              "value": "150"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 400', () => pm.response.to.have.status(400));",
+              "pm.test('Error con formato { error }', () => pm.expect(pm.response.json().error).to.be.a('string').and.not.empty);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 GET /notifications con search=feedback",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notifications?search=feedback",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "notifications"
+          ],
+          "query": [
+            {
+              "key": "search",
+              "value": "feedback"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('Solo devuelve notificaciones de tipo FEEDBACK_PUBLISHED', () => {",
+              "  pm.response.json().data.forEach(n => pm.expect(n.type).to.eql('FEEDBACK_PUBLISHED'));",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 PATCH /notifications/{id}/read (200)",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notifications/{{notificationId}}/read",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "notifications",
+            "{{notificationId}}",
+            "read"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Hay un id guardado por la prueba 03', () => pm.expect(pm.collectionVariables.get('notificationId')).to.be.a('string').and.not.empty);",
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('La notificación queda leída', () => {",
+              "  pm.expect(body.id).to.eql(pm.collectionVariables.get('notificationId'));",
+              "  pm.expect(body.read).to.eql(true);",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 PATCH /notifications/{id}/read con id inexistente (404)",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notifications/id-inexistente/read",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "notifications",
+            "id-inexistente",
+            "read"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 404', () => pm.response.to.have.status(404));",
+              "pm.test('Mensaje esperado', () => pm.expect(pm.response.json().error).to.eql('Notificación no encontrada'));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 PATCH /notifications/read-all (200)",
+      "request": {
+        "method": "PATCH",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notifications/read-all",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "notifications",
+            "read-all"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('updatedCount es un número', () => pm.expect(pm.response.json().updatedCount).to.be.a('number').and.at.least(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 GET /notifications tras read-all (unreadCount = 0)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/notifications",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "notifications"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 200', () => pm.response.to.have.status(200));",
+              "pm.test('No quedan notificaciones sin leer', () => pm.expect(pm.response.json().unreadCount).to.eql(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 GET ruta inexistente (404)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/ruta-inexistente",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "ruta-inexistente"
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('Responde 404', () => pm.response.to.have.status(404));",
+              "pm.test('Mensaje esperado', () => pm.expect(pm.response.json().error).to.eql('Ruta no encontrada'));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
