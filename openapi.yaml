@@ -1,11 +1,219 @@
-openapi: 3.0.3
+﻿openapi: 3.0.3
 info:
   title: RevisaTEC MS3 - Notifications
+  description: Microservicio de Notificaciones asíncronas y eventos para RevisaTEC
   version: 0.1.0
 paths:
   /health:
     get:
-      summary: Estado del servicio
+      summary: Estado base del servicio
+      description: Endpoint inmutable para validación de despliegue, APIM y certificados.
       responses:
         '200':
-          description: Servicio activo
+          description: Servicio activo y saludable
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  service:
+                    type: string
+                    example: revisatec-ms-notifications
+                  timestamp:
+                    type: integer
+                    format: int64
+                    example: 1729000000000
+
+  /health/dependencies:
+    get:
+      summary: Diagnóstico de dependencias externas
+      description: Verifica la conectividad con Azure Storage Queue.
+      responses:
+        '200':
+          description: Dependencias conectadas y operativas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  queue:
+                    type: string
+                    example: ok
+        '503':
+          description: Dependencia externa no disponible
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  queue:
+                    type: string
+                    example: error
+
+  /notifications:
+    get:
+      summary: Lista de notificaciones
+      description: Obtiene el historial de notificaciones paginado, ordenado cronológicamente descendente y con búsqueda opcional.
+      parameters:
+        - name: page
+          in: query
+          description: Número de página (>= 1)
+          required: false
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: pageSize
+          in: query
+          description: Cantidad de elementos por página (1-100)
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: search
+          in: query
+          description: Filtro de texto para título o mensaje
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Lista paginada de notificaciones obtenida exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationPage'
+        '400':
+          description: Parámetros de consulta inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/{id}/read:
+    patch:
+      summary: Marcar notificación como leída
+      description: Actualiza el estado de una notificación individual a leída.
+      parameters:
+        - name: id
+          in: path
+          description: Identificador único del evento / notificación
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Notificación actualizada correctamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Notification'
+        '400':
+          description: Identificador no válido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Notificación no encontrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /notifications/read-all:
+    patch:
+      summary: Marcar todas como leídas
+      description: Extensión aprobada para marcar masivamente todas las notificaciones pendientes como leídas.
+      responses:
+        '200':
+          description: Cantidad de notificaciones actualizadas
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  updatedCount:
+                    type: integer
+                    example: 3
+
+components:
+  schemas:
+    Notification:
+      type: object
+      required:
+        - id
+        - type
+        - title
+        - message
+        - courseId
+        - groupId
+        - createdAt
+        - read
+        - source
+      properties:
+        id:
+          type: string
+          example: 3fa85f64-5717-4562-b3fc-2c963f66afa6
+        type:
+          type: string
+          enum: [FEEDBACK_PUBLISHED, ISSUE_DETECTED]
+          example: FEEDBACK_PUBLISHED
+        title:
+          type: string
+          example: Retroalimentación de Hito 1
+        message:
+          type: string
+          example: Se ha publicado la evaluación del grupo 2
+        courseId:
+          type: integer
+          example: 1
+        groupId:
+          type: integer
+          example: 2
+        createdAt:
+          type: integer
+          format: int64
+          description: Epoch timestamp en milisegundos
+          example: 1729000000000
+        read:
+          type: boolean
+          example: false
+        source:
+          type: string
+          example: ms-analysis
+
+    NotificationPage:
+      type: object
+      properties:
+        page:
+          type: integer
+          example: 1
+        pageSize:
+          type: integer
+          example: 20
+        totalRecords:
+          type: integer
+          example: 45
+        totalPages:
+          type: integer
+          example: 3
+        unreadCount:
+          type: integer
+          example: 5
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Mensaje descriptivo del error

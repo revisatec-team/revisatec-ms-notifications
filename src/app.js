@@ -1,6 +1,7 @@
-const express = require('express');
+﻿const express = require('express');
 const { checkQueueHealth } = require('./queue/queueClient');
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
+const notificationsRouter = require('./routes/notifications.routes');
 
 const app = express();
 
@@ -22,8 +23,8 @@ app.get('/health/dependencies', async (req, res) => {
   res.status(statusCode).json(result);
 });
 
-// Espacio para rutas de la API (se conectan en Miércoles)
-// app.use('/notifications', notificationsRouter);
+// Rutas de la API de Notificaciones
+app.use('/notifications', notificationsRouter);
 
 // Manejo de 404 y errores
 app.use(notFoundHandler);
