@@ -13,6 +13,32 @@ function getRepo(req) {
 }
 
 /**
+ * GET /notifications/realtime-token
+ * Obtiene la URL con token temporal de conexión directa para Azure Web PubSub.
+ */
+router.get('/realtime-token', async (req, res, next) => {
+  try {
+    const tokenProvider = req.app.locals.realtimeTokenProvider;
+
+    if (!tokenProvider) {
+      return res.status(503).json({
+        error: 'Tiempo real no disponible',
+      });
+    }
+
+    res.setHeader('Cache-Control', 'no-store');
+    const tokenData = await tokenProvider.getClientUrl();
+
+    res.json({
+      url: tokenData.url,
+      expiresAt: tokenData.expiresAt,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
  * GET /notifications
  * Lista notificaciones con soporte para paginación y búsqueda.
  */

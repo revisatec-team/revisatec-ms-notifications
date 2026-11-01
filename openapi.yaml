@@ -2,7 +2,7 @@
 info:
   title: RevisaTEC MS3 - Notifications
   description: Microservicio de Notificaciones asíncronas y eventos para RevisaTEC
-  version: 0.1.0
+  version: 0.2.0
 paths:
   /health:
     get:
@@ -52,6 +52,29 @@ paths:
                   queue:
                     type: string
                     example: error
+
+  /notifications/realtime-token:
+    get:
+      summary: Obtener URL y token para conexión en tiempo real
+      description: Genera una URL con token temporal para conectar el cliente WebSocket directamente a Azure Web PubSub sin pasar por APIM.
+      responses:
+        '200':
+          description: URL de conexión WebSocket y fecha de expiración
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RealtimeTokenResponse'
+        '503':
+          description: Servicio de tiempo real no configurado o no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /notifications:
     get:
@@ -144,6 +167,22 @@ paths:
 
 components:
   schemas:
+    RealtimeTokenResponse:
+      type: object
+      required:
+        - url
+        - expiresAt
+      properties:
+        url:
+          type: string
+          description: URL WebSocket directa para conectar al cliente con Azure Web PubSub
+          example: wss://revisatec-pubsub.webpubsub.azure.com/client/hubs/notifications?access_token=eyJ...
+        expiresAt:
+          type: integer
+          format: int64
+          description: Epoch timestamp en milisegundos indicando cuándo expira el token
+          example: 1792000000000
+
     Notification:
       type: object
       required:

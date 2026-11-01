@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const http = require('node:http');
 const app = require('../src/app');
 const { InMemoryNotificationRepository } = require('../src/repositories/inMemoryNotification.repository');
+const { FakeRealtimeTokenProvider } = require('../src/realtime/tokenProvider');
 
 describe('Servidor Express y Endpoints Base', () => {
   let server;
@@ -35,6 +36,7 @@ describe('Servidor Express y Endpoints Base', () => {
       },
     ]);
     app.locals.notificationRepo = repo;
+    app.locals.realtimeTokenProvider = null; // Inicialmente sin tiempo real para probar el 503
 
     return new Promise((resolve) => {
       server = http.createServer(app);
@@ -100,7 +102,6 @@ describe('Servidor Express y Endpoints Base', () => {
       assert.equal(json.totalRecords, 2);
       assert.equal(json.unreadCount, 2);
       assert.equal(json.data.length, 2);
-      // evt-2 tiene fecha más reciente que evt-1
       assert.equal(json.data[0].id, 'evt-2');
     });
 
@@ -129,7 +130,6 @@ describe('Servidor Express y Endpoints Base', () => {
       assert.equal(json.id, 'evt-1');
       assert.equal(json.read, true);
 
-      // Verificar que el unreadCount disminuyó
       const listRes = await fetch(`${baseUrl}/notifications`);
       const listJson = await listRes.json();
       assert.equal(listJson.unreadCount, 1);
@@ -148,11 +148,64 @@ describe('Servidor Express y Endpoints Base', () => {
       assert.equal(res.status, 200);
 
       const json = await res.json();
-      assert.equal(json.updatedCount, 1); // Solo evt-2 quedaba pendiente
+      assert.equal(json.updatedCount, 1);
 
       const listRes = await fetch(`${baseUrl}/notifications`);
       const listJson = await listRes.json();
       assert.equal(listJson.unreadCount, 0);
+    });
+
+    it('GET /notifications/realtime-token devuelve 503 cuando el tiempo real no está configurado', async () => {
+      app.locals.realtimeTokenProvider = null;
+      const res = await fetch(`${baseUrl}/notifications/realtime-token`);
+      assert.equal(res.status, 503);
+
+      const json = await res.json();
+      assert.equal(json.error, 'Tiempo real no disponible');
+    });
+
+    it('GET /notifications/realtime-token devuelve 200 con url y expiresAt cuando está configurado', async () => {
+      app.locals.realtimeTokenProvider = new FakeRealtimeTokenProvider();
+      const res = await fetch(`${baseUrl}/notifications/realtime-token`);
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get('cache-control'), 'no-store');
+
+      const json = await res.json();
+      assert.ok(json.url.startsWith('wss://'));
+      assert.equal(typeof json.expiresAt, 'number');
+      assert.ok(json.expiresAt > Date.now());
+    });
+  });
+
+  describe('Middleware de CORS para desarrollo local', () => {
+    it('aplica encabezados CORS cuando el origen está permitido', async () => {
+      app.locals.corsAllowedOrigins = 'http://localhost:5173,http://localhost:5174';
+
+      const res = await fetch(`${baseUrl}/health`, {
+        headers: { Origin: 'http://localhost:5173' },
+      });
+      assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+      assert.equal(res.headers.get('access-control-allow-methods'), 'GET, PATCH, OPTIONS');
+    });
+
+    it('ignora orígenes no permitidos sin enviar encabezados CORS', async () => {
+      app.locals.corsAllowedOrigins = 'http://localhost:5173';
+
+      const res = await fetch(`${baseUrl}/health`, {
+        headers: { Origin: 'http://origen-no-autorizado.com' },
+      });
+      assert.equal(res.headers.get('access-control-allow-origin'), null);
+    });
+
+    it('responde 204 ante solicitudes OPTIONS preflight de orígenes permitidos', async () => {
+      app.locals.corsAllowedOrigins = 'http://localhost:5173';
+
+      const res = await fetch(`${baseUrl}/notifications`, {
+        method: 'OPTIONS',
+        headers: { Origin: 'http://localhost:5173' },
+      });
+      assert.equal(res.status, 204);
+      assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:5173');
     });
   });
 });
