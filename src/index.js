@@ -1,26 +1,57 @@
-const app = require('./app');
+﻿const app = require('./app');
 const { getConfig } = require('./config');
-const { initQueues } = require('./queue/queueClient');
+const { initQueues, getMainQueueClient, getPoisonQueueClient } = require('./queue/queueClient');
+const { TableNotificationRepository } = require('./repositories/tableNotification.repository');
+const { NotificationsService } = require('./services/notifications.service');
+const { QueueConsumer } = require('./queue/consumer');
 const { logger } = require('./utils/logger');
 
 async function start() {
   try {
     const config = getConfig();
 
-    // Inicialización de colas de Azure Storage
+    // 1. Inicialización de colas de Azure Storage
     await initQueues(config);
 
+    // 2. Inicialización del repositorio persistente en Azure Table Storage
+    const notificationRepo = new TableNotificationRepository({
+      connectionString: config.queueConnectionString,
+      tableName: config.tableName,
+    });
+    await notificationRepo.init();
+
+    // Compartir el repositorio con las rutas de Express
+    app.locals.notificationRepo = notificationRepo;
+
+    // 3. Inicialización del servicio y consumidor de colas
+    const notificationsService = new NotificationsService({ repository: notificationRepo });
+    const consumer = new QueueConsumer({
+      mainQueueClient: getMainQueueClient(),
+      poisonQueueClient: getPoisonQueueClient(),
+      notificationsService,
+      pollIntervalMs: config.pollIntervalMs,
+      visibilityTimeoutS: config.visibilityTimeoutS,
+      maxDequeueCount: config.maxDequeueCount,
+    });
+
+    // Iniciar bucle de consumo en segundo plano
+    consumer.start();
+
+    // 4. Iniciar servidor HTTP
     const server = app.listen(config.port, () => {
-      logger.info('Servidor MS3 Notifications iniciado', {
+      logger.info('Servidor MS3 Notifications iniciado con éxito', {
         port: config.port,
         queueName: config.queueName,
         poisonQueueName: config.poisonQueueName,
+        tableName: config.tableName,
       });
     });
 
-    // Cierre ordenado
+    // 5. Cierre ordenado (Graceful Shutdown)
     const shutdown = async (signal) => {
-      logger.info(`Señal ${signal} recibida, cerrando servidor ordenadamente...`);
+      logger.info(`Señal ${signal} recibida, cerrando servicio ordenadamente...`);
+      await consumer.stop();
+
       server.close(() => {
         logger.info('Servidor HTTP cerrado.');
         process.exit(0);
