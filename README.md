@@ -1,4 +1,4 @@
-﻿# RevisaTEC — MS3: Notifications & Realtime
+# RevisaTEC — MS3: Notifications & Realtime
 
 Microservicio de notificaciones asíncronas y eventos en tiempo real para la plataforma **RevisaTEC**.
 
@@ -29,6 +29,15 @@ flowchart LR
 
 ---
 
+## 🔐 Seguridad y Acceso
+
+- El servicio se publica únicamente a través de **Azure API Management (APIM)**. APIM presenta un certificado de cliente (mTLS) y el App Service rechaza las llamadas directas que no lo traigan.
+- Los consumidores envían el header `Ocp-Apim-Subscription-Key` hacia APIM. La clave nunca se guarda en este repositorio.
+- Única excepción: la conexión **WebSocket** del navegador va directa a Azure Web PubSub, con un token temporal que se obtiene por `GET /notifications/realtime-token` (esa petición sí pasa por APIM).
+- `CORS_ALLOWED_ORIGINS` es solo para desarrollo local; en Azure se deja vacío y CORS se configura en APIM.
+
+---
+
 ## 📡 Formato del Mensaje de Tiempo Real
 
 Los mensajes transmitidos a los clientes suscritos al WebSocket tienen la siguiente estructura JSON:
@@ -49,6 +58,8 @@ Los mensajes transmitidos a los clientes suscritos al WebSocket tienen la siguie
   }
 }
 ```
+
+Las fechas (`createdAt`) son Epoch en milisegundos; el frontend las convierte a la zona horaria del dispositivo.
 
 ---
 
@@ -77,6 +88,8 @@ Configura un archivo `.env` en la raíz (puedes basarte en `.env.example`):
 
 ## 🚀 Comandos de Ejecución
 
+Requiere Node.js 22 o superior.
+
 ```bash
 # Instalar dependencias
 npm install
@@ -92,6 +105,15 @@ npm start
 
 # Enviar mensaje de prueba a la cola de Azure
 npm run send:test
+
+# Enviar un mensaje de otro tipo y grupo (tipo y número de grupo)
+npm run send:test -- ISSUE_DETECTED 2
+
+# Enviar el mismo mensaje dos veces (prueba de idempotencia)
+npm run send:test -- --duplicate
+
+# Enviar un mensaje con estructura inválida (termina en la cola poison)
+npm run send:test -- --invalid
 
 # Escuchar eventos en vivo desde Azure Web PubSub (WebSocket)
 npm run listen:test
@@ -120,6 +142,18 @@ Para probar todo el flujo de tiempo real de forma local:
 
 ---
 
+## 🧪 Pruebas de API (Postman)
+
+La carpeta `postman/` contiene la colección y el entorno local, con una prueba por endpoint (incluye los casos 400 y 404). Con el servidor en marcha (`npm run dev`) y al menos un mensaje enviado (`npm run send:test`):
+
+```bash
+npx newman run postman/revisatec-ms3.postman_collection.json -e postman/ms3-local.postman_environment.json
+```
+
+La clave de APIM (`apimKey`) se define en el entorno de Postman y nunca se guarda en el repositorio.
+
+---
+
 ## 📡 Endpoints REST
 
 | Método | Ruta | Descripción |
@@ -127,8 +161,18 @@ Para probar todo el flujo de tiempo real de forma local:
 | `GET` | `/health` | Diagnóstico de salud base (inmutable para APIM y balanceadores) |
 | `GET` | `/health/dependencies` | Estado de conectividad con la cola de Azure Storage |
 | `GET` | `/notifications/realtime-token` | URL con token temporal de conexión a Web PubSub (Cache-Control: no-store) |
-| `GET` | `/notifications` | Lista de notificaciones con paginación (`page`, `pageSize`) y filtro (`search`) |
+| `GET` | `/notifications` | Lista de notificaciones con paginación (`page`, `pageSize`) y filtro (`search`, sobre título, mensaje o tipo) |
 | `PATCH` | `/notifications/:id/read` | Marca una notificación específica como leída (`read: true`) |
 | `PATCH` | `/notifications/read-all` | Marca todas las notificaciones pendientes como leídas |
 
+**Formato de la lista:** `GET /notifications` responde `{ page, pageSize, totalRecords, totalPages, unreadCount, data }`. La lista viaja en `data` (MS1 y MS2 usan `items`). Los errores usan `{ "error": "mensaje" }`.
+
 Consulta la especificación OpenAPI en [openapi.yaml](openapi.yaml).
+
+---
+
+## ☁ Despliegue
+
+Al hacer push a `main`, GitHub Actions (`.github/workflows/ci-cd.yml`) instala dependencias, ejecuta lint, build y pruebas, y despliega a **Azure App Service**. El workflow usa el secret `AZURE_WEBAPP_PUBLISH_PROFILE` y la versión de Node definida en `NODE_VERSION` del propio archivo.
+
+En el App Service se configuran como *Application settings* las variables de la tabla anterior (mínimo `QUEUE_CONNECTION_STRING`; para tiempo real, `REALTIME_CONNECTION_STRING`). El servicio arranca con `npm start`. Nunca se suben secretos al repositorio.
