@@ -75,6 +75,27 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/RealtimeTokenResponse'
+              examples:
+                conexion_profesor:
+                  summary: Token de conexión WebSocket para Profesor
+                  value:
+                    url: 'wss://revisatec-pubsub.webpubsub.azure.com/client/hubs/notifications?access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwcm9mZXNvckBpdGNyLmFjLmNyIiwicm9sZSI6InByb2Zlc3NvciIsImlhdCI6MTc5MjY4NDgwMCwiZXhwIjoxNzkyNjg4NDAwfQ.exampleToken1&client_id=prof-marcos'
+                    expiresAt: 1792688400000
+                conexion_estudiante_g2:
+                  summary: Token de conexión WebSocket para Estudiante Grupo 2
+                  value:
+                    url: 'wss://revisatec-pubsub.webpubsub.azure.com/client/hubs/notifications?access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzb2ZpYUBlc3R1ZGlhbnRlYy5jciIsInJvbGUiOiJzdHVkZW50IiwiZ3JvdXBJZCI6MiwiaWF0IjoxNzkyNjg0ODAwLCJleHAiOjE3OTI2ODg0MDB9.exampleToken2&client_id=stud-sofia-g2'
+                    expiresAt: 1792688400000
+                conexion_estudiante_g1:
+                  summary: Token de conexión WebSocket para Estudiante Grupo 1
+                  value:
+                    url: 'wss://revisatec-pubsub.webpubsub.azure.com/client/hubs/notifications?access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJmYWJpYW5AZXN0dWRpYW50ZWMuY3IiLCJyb2xlIjoic3R1ZGVudCIsImdyb3VwSWQiOjEsImlhdCI6MTc5MjY4NDgwMCwiZXhwIjoxNzkyNjg4NDAwfQ.exampleToken3&client_id=stud-fabian-g1'
+                    expiresAt: 1792688400000
+                conexion_renovacion_sesion:
+                  summary: Token de reconexión / renovación automática de sesión
+                  value:
+                    url: 'wss://revisatec-pubsub.webpubsub.azure.com/client/hubs/notifications?access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJzZXNzaW9uLXJlZnJlc2giLCJhdWQiOiJyZXZpc2F0ZWMtcHVic3ViIiwiaWF0IjoxNzkyNjg0ODAwLCJleHAiOjE3OTI2OTIwMDB9.exampleToken4&client_id=session-refresh-web'
+                    expiresAt: 1792692000000
         '503':
           description: Servicio de tiempo real no configurado o no disponible
           content:
@@ -119,6 +140,133 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/NotificationPage'
+              examples:
+                todas_las_notificaciones:
+                  summary: Historial completo reciente (4 notificaciones)
+                  value:
+                    page: 1
+                    pageSize: 20
+                    totalRecords: 4
+                    totalPages: 1
+                    unreadCount: 2
+                    data:
+                      - id: b4e287a1-5d9c-4f12-a89e-7c1a0e8d5f31
+                        type: FEEDBACK_PUBLISHED
+                        title: 'Retroalimentación publicada: Entrega 2 - Arquitectura y Prototipo'
+                        message: 'El profesor ha publicado la evaluación y observaciones para el Grupo 2 (revisatec/g2-web) con una nota de 85/100.'
+                        courseId: 1
+                        groupId: 2
+                        createdAt: 1792681200000
+                        read: false
+                        source: ms-analysis
+                      - id: c9a14f32-8e2b-47d5-91fa-2d6e4b8a1c90
+                        type: ISSUE_DETECTED
+                        title: 'Inconveniente detectado: Commits de prueba en rama principal'
+                        message: 'Se detectaron 3 commits de prueba (test fix, wip) sin revisión por pares en la rama main del Grupo 1.'
+                        courseId: 1
+                        groupId: 1
+                        createdAt: 1792670400000
+                        read: false
+                        source: ms-analysis
+                      - id: d1f5e824-3a7c-40b9-8e4d-5c2a9f1b7e63
+                        type: FEEDBACK_PUBLISHED
+                        title: 'Retroalimentación publicada: Entrega 1 - Especificación de Requerimientos'
+                        message: 'Se ha publicado la retroalimentación y cumplimiento de criterios de la rúbrica para el Grupo 3.'
+                        courseId: 1
+                        groupId: 3
+                        createdAt: 1792584000000
+                        read: true
+                        source: ms-analysis
+                      - id: e7b39a45-6c1d-48f0-b2e3-8a4d7f5c9e12
+                        type: ISSUE_DETECTED
+                        title: 'Inconveniente detectado: Fusión sin revisores mínimos requeridos'
+                        message: 'El PR #14 del Grupo 4 fue fusionado sin cumplir el requisito de 2 revisores mínimos establecido en la configuración.'
+                        courseId: 1
+                        groupId: 4
+                        createdAt: 1792497600000
+                        read: true
+                        source: ms-analysis
+                filtro_solo_sin_leer:
+                  summary: Notificaciones pendientes de lectura (2 no leídas)
+                  value:
+                    page: 1
+                    pageSize: 20
+                    totalRecords: 2
+                    totalPages: 1
+                    unreadCount: 2
+                    data:
+                      - id: b4e287a1-5d9c-4f12-a89e-7c1a0e8d5f31
+                        type: FEEDBACK_PUBLISHED
+                        title: 'Retroalimentación publicada: Entrega 2 - Arquitectura y Prototipo'
+                        message: 'El profesor ha publicado la evaluación y observaciones para el Grupo 2 (revisatec/g2-web) con una nota de 85/100.'
+                        courseId: 1
+                        groupId: 2
+                        createdAt: 1792681200000
+                        read: false
+                        source: ms-analysis
+                      - id: c9a14f32-8e2b-47d5-91fa-2d6e4b8a1c90
+                        type: ISSUE_DETECTED
+                        title: 'Inconveniente detectado: Commits de prueba en rama principal'
+                        message: 'Se detectaron 3 commits de prueba (test fix, wip) sin revisión por pares en la rama main del Grupo 1.'
+                        courseId: 1
+                        groupId: 1
+                        createdAt: 1792670400000
+                        read: false
+                        source: ms-analysis
+                filtro_busqueda_feedback:
+                  summary: Filtro por búsqueda de retroalimentaciones (?search=Retroalimentacion)
+                  value:
+                    page: 1
+                    pageSize: 20
+                    totalRecords: 2
+                    totalPages: 1
+                    unreadCount: 1
+                    data:
+                      - id: b4e287a1-5d9c-4f12-a89e-7c1a0e8d5f31
+                        type: FEEDBACK_PUBLISHED
+                        title: 'Retroalimentación publicada: Entrega 2 - Arquitectura y Prototipo'
+                        message: 'El profesor ha publicado la evaluación y observaciones para el Grupo 2 (revisatec/g2-web) con una nota de 85/100.'
+                        courseId: 1
+                        groupId: 2
+                        createdAt: 1792681200000
+                        read: false
+                        source: ms-analysis
+                      - id: d1f5e824-3a7c-40b9-8e4d-5c2a9f1b7e63
+                        type: FEEDBACK_PUBLISHED
+                        title: 'Retroalimentación publicada: Entrega 1 - Especificación de Requerimientos'
+                        message: 'Se ha publicado la retroalimentación y cumplimiento de criterios de la rúbrica para el Grupo 3.'
+                        courseId: 1
+                        groupId: 3
+                        createdAt: 1792584000000
+                        read: true
+                        source: ms-analysis
+                filtro_busqueda_inconvenientes:
+                  summary: Filtro por búsqueda de inconvenientes (?search=Inconveniente)
+                  value:
+                    page: 1
+                    pageSize: 20
+                    totalRecords: 2
+                    totalPages: 1
+                    unreadCount: 1
+                    data:
+                      - id: c9a14f32-8e2b-47d5-91fa-2d6e4b8a1c90
+                        type: ISSUE_DETECTED
+                        title: 'Inconveniente detectado: Commits de prueba en rama principal'
+                        message: 'Se detectaron 3 commits de prueba (test fix, wip) sin revisión por pares en la rama main del Grupo 1.'
+                        courseId: 1
+                        groupId: 1
+                        createdAt: 1792670400000
+                        read: false
+                        source: ms-analysis
+                      - id: e7b39a45-6c1d-48f0-b2e3-8a4d7f5c9e12
+                        type: ISSUE_DETECTED
+                        title: 'Inconveniente detectado: Fusión sin revisores mínimos requeridos'
+                        message: 'El PR #14 del Grupo 4 fue fusionado sin cumplir el requisito de 2 revisores mínimos establecido en la configuración.'
+                        courseId: 1
+                        groupId: 4
+                        createdAt: 1792497600000
+                        read: true
+                        source: ms-analysis
         '400':
           description: Parámetros de consulta inválidos
           content:
@@ -137,6 +285,19 @@ paths:
           required: true
           schema:
             type: string
+          examples:
+            notificacion_1:
+              summary: ID Notificación Retroalimentación G2
+              value: b4e287a1-5d9c-4f12-a89e-7c1a0e8d5f31
+            notificacion_2:
+              summary: ID Notificación Inconveniente G1
+              value: c9a14f32-8e2b-47d5-91fa-2d6e4b8a1c90
+            notificacion_3:
+              summary: ID Notificación Retroalimentación G3
+              value: d1f5e824-3a7c-40b9-8e4d-5c2a9f1b7e63
+            notificacion_4:
+              summary: ID Notificación Inconveniente G4
+              value: e7b39a45-6c1d-48f0-b2e3-8a4d7f5c9e12
       responses:
         '200':
           description: Notificación actualizada correctamente
@@ -144,6 +305,55 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Notification'
+              examples:
+                notificacion_1_leida:
+                  summary: Retroalimentación G2 marcada como leída
+                  value:
+                    id: b4e287a1-5d9c-4f12-a89e-7c1a0e8d5f31
+                    type: FEEDBACK_PUBLISHED
+                    title: 'Retroalimentación publicada: Entrega 2 - Arquitectura y Prototipo'
+                    message: 'El profesor ha publicado la evaluación y observaciones para el Grupo 2 (revisatec/g2-web) con una nota de 85/100.'
+                    courseId: 1
+                    groupId: 2
+                    createdAt: 1792681200000
+                    read: true
+                    source: ms-analysis
+                notificacion_2_leida:
+                  summary: Inconveniente G1 marcado como leído
+                  value:
+                    id: c9a14f32-8e2b-47d5-91fa-2d6e4b8a1c90
+                    type: ISSUE_DETECTED
+                    title: 'Inconveniente detectado: Commits de prueba en rama principal'
+                    message: 'Se detectaron 3 commits de prueba (test fix, wip) sin revisión por pares en la rama main del Grupo 1.'
+                    courseId: 1
+                    groupId: 1
+                    createdAt: 1792670400000
+                    read: true
+                    source: ms-analysis
+                notificacion_3_leida:
+                  summary: Retroalimentación G3 confirmada como leída
+                  value:
+                    id: d1f5e824-3a7c-40b9-8e4d-5c2a9f1b7e63
+                    type: FEEDBACK_PUBLISHED
+                    title: 'Retroalimentación publicada: Entrega 1 - Especificación de Requerimientos'
+                    message: 'Se ha publicado la retroalimentación y cumplimiento de criterios de la rúbrica para el Grupo 3.'
+                    courseId: 1
+                    groupId: 3
+                    createdAt: 1792584000000
+                    read: true
+                    source: ms-analysis
+                notificacion_4_leida:
+                  summary: Inconveniente G4 confirmado como leído
+                  value:
+                    id: e7b39a45-6c1d-48f0-b2e3-8a4d7f5c9e12
+                    type: ISSUE_DETECTED
+                    title: 'Inconveniente detectado: Fusión sin revisores mínimos requeridos'
+                    message: 'El PR #14 del Grupo 4 fue fusionado sin cumplir el requisito de 2 revisores mínimos establecido en la configuración.'
+                    courseId: 1
+                    groupId: 4
+                    createdAt: 1792497600000
+                    read: true
+                    source: ms-analysis
         '400':
           description: Identificador no válido
           content:
@@ -170,10 +380,28 @@ paths:
             application/json:
               schema:
                 type: object
+                required:
+                  - updatedCount
                 properties:
                   updatedCount:
                     type: integer
-                    example: 3
+              examples:
+                todas_marcadas:
+                  summary: 4 notificaciones pendientes marcadas como leídas
+                  value:
+                    updatedCount: 4
+                dos_marcadas:
+                  summary: 2 notificaciones pendientes marcadas como leídas
+                  value:
+                    updatedCount: 2
+                una_marcada:
+                  summary: 1 notificación pendiente marcada como leída
+                  value:
+                    updatedCount: 1
+                sin_pendientes:
+                  summary: Sin notificaciones pendientes por leer
+                  value:
+                    updatedCount: 0
 
 components:
   securitySchemes:
