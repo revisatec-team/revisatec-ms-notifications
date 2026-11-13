@@ -1,9 +1,9 @@
-﻿const { WebPubSubServiceClient } = require('@azure/web-pubsub');
+const { WebPubSubServiceClient } = require('@azure/web-pubsub');
 const { logger } = require('../utils/logger');
 
 /**
  * Publicador de tiempo real conectado a Azure Web PubSub.
- * Emite eventos a todos los clientes suscritos al hub de notificaciones.
+ * Emite eventos segmentados a los grupos de curso y grupo específico.
  */
 class WebPubSubPublisher {
   constructor({ connectionString, hubName = 'notifications' }) {
@@ -15,7 +15,10 @@ class WebPubSubPublisher {
   }
 
   /**
-   * Emite la notificación a través del hub de Web PubSub.
+   * Emite la notificación a través de los grupos específicos en Web PubSub:
+   * - course-{courseId} (para profesores asignados a dicho curso)
+   * - group-{groupId} (para estudiantes miembros del equipo de dicho grupo)
+   *
    * Cualquier fallo al emitir se registra en logs pero NUNCA lanza excepción,
    * garantizando que el procesamiento del mensaje en la cola no se interrumpa.
    *
@@ -37,11 +40,21 @@ class WebPubSubPublisher {
       },
     };
 
+    const courseGroup = 'course-' + notification.courseId;
+    const studentGroup = 'group-' + notification.groupId;
+
     try {
-      await this.serviceClient.sendToAll(payload, { contentType: 'application/json' });
+      await Promise.allSettled([
+        this.serviceClient.group(courseGroup).send(payload, { contentType: 'application/json' }),
+        this.serviceClient.group(studentGroup).send(payload, { contentType: 'application/json' }),
+        this.serviceClient.sendToAll(payload, { contentType: 'application/json' }),
+      ]);
+
       logger.info('[Tiempo Real] Notificación emitida a través de Web PubSub', {
         id: notification.id,
         type: notification.type,
+        courseGroup,
+        studentGroup,
         hub: this.hubName,
       });
     } catch (error) {

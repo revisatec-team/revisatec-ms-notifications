@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 env:
-  APP_NAME: revisatec-ms-notifications   # cambiar por el nombre real del App Service
-  NODE_VERSION: '24'                     # cambiar por runtime
+  APP_NAME: revisatec-ms-notifications   # nombre real del App Service
+  NODE_VERSION: '22'                     # alineado con NODE|22-lts del App Service
 
 jobs:
   build-deploy:
