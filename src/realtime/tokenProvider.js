@@ -1,4 +1,4 @@
-﻿const { WebPubSubServiceClient } = require('@azure/web-pubsub');
+const { WebPubSubServiceClient } = require('@azure/web-pubsub');
 
 /**
  * Proveedor de tokens de acceso para conexión cliente WebSocket a Azure Web PubSub.
@@ -15,16 +15,22 @@ class WebPubSubTokenProvider {
 
   /**
    * Genera una URL con token temporal de acceso para el cliente (WebSocket).
-   * Asigna userId 'professor' y sin roles adicionales (solo lectura).
+   * Permite asociar la identidad (userId/email) y grupos autorizados (curso o grupo).
    *
+   * @param {{ userId?: string, groups?: string[] }} [options]
    * @returns {Promise<{ url: string, expiresAt: number }>}
    */
-  async getClientUrl() {
-    const tokenResponse = await this.serviceClient.getClientAccessToken({
-      userId: 'professor',
+  async getClientUrl({ userId = 'professor', groups = [] } = {}) {
+    const tokenOptions = {
+      userId: userId || 'professor',
       expirationTimeInMinutes: this.ttlMinutes,
-    });
+    };
 
+    if (Array.isArray(groups) && groups.length > 0) {
+      tokenOptions.groups = groups;
+    }
+
+    const tokenResponse = await this.serviceClient.getClientAccessToken(tokenOptions);
     const expiresAt = Date.now() + this.ttlMinutes * 60 * 1000;
 
     return {
@@ -46,9 +52,10 @@ class FakeRealtimeTokenProvider {
     this.ttlMinutes = ttlMinutes;
   }
 
-  async getClientUrl() {
+  async getClientUrl({ userId = 'professor', groups = [] } = {}) {
+    const groupParam = Array.isArray(groups) && groups.length > 0 ? '&groups=' + groups.join(',') : '';
     return {
-      url: this.url,
+      url: this.url + '&userId=' + encodeURIComponent(userId) + groupParam,
       expiresAt: Date.now() + this.ttlMinutes * 60 * 1000,
     };
   }
